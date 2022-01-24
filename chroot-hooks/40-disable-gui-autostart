@@ -1,0 +1,4 @@
+#!/bin/bash
+set -eEuo pipefail
+
+systemctl set-default multi-user

@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eEuo pipefail
+
+boot_options="noprompt"
+sed -i -E "s|(linux\s+\S+)|\1 ${boot_options} |g" ${isobuild}/boot/grub/grub.cfg
+sed -i -E "s|(append\s+)|\1 ${boot_options} |g" ${isobuild}/isolinux/txt.cfg

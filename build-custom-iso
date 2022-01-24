@@ -1,0 +1,180 @@
+#!/bin/bash
+set -eEuo pipefail
+shopt -s lastpipe
+shopt -s expand_aliases
+
+# Several variables are set by default in the container environment:
+#   SOURCE_ISO_URL
+#   ISO_NAME
+#   ROOT_PASSWORD
+#   OUTPUT_DIR
+#   BUILD_DIR
+#   SOURCE_DIR
+
+OUTPATH=${OUTPUT_DIR}/${ISO_NAME}
+
+function indent()
+{
+    while read -r line; do
+        echo "${line}" | sed -e 's/^/    /'
+    done
+}
+
+alias rm='rm --one-file-system --force'
+alias rmr='rm --recursive'
+alias mkdir='mkdir --parent'
+
+function unmount_chroot()
+{
+    (
+        set +u
+        if [[ -n ${chroot} && -n ${chroot_mounts} ]]; then
+            for mp in "${chroot_mounts[@]}"; do
+                if mountpoint --quiet "${mp}"; then
+                    umount --verbose --force "${mp}" || true
+                fi
+            done
+            if [[ -e ${chroot}/etc/resolv.conf.orig ]]; then
+                mv ${chroot}/etc/resolv.conf.orig ${chroot}/etc/resolv.conf
+            fi
+        fi
+    )
+}
+function cleanup()
+{
+    echo "> Cleaning up chroot"
+    (
+        set +u
+        if [[ -n ${isomount}  ]] && mountpoint --quiet ${isomount}; then
+            umount ${isomount} &>/dev/null || true
+        fi
+        unmount_chroot
+    ) 2>&1 | indent
+}
+function cancel()
+{
+    (
+        set -u
+        rm ${OUTPATH}
+    ) 2>&1 | indent
+}
+trap cancel SIGINT SIGTERM ERR
+trap cleanup EXIT
+
+echo "> Build ENV:"
+env | indent
+
+mkdir ${BUILD_DIR} ${OUTPUT_DIR}
+
+# Download Ubuntu ISO
+filename=$(basename "${SOURCE_ISO_URL}")
+source_iso=${OUTPUT_DIR}/${filename}
+if [[ ! -e ${source_iso} ]]; then
+    echo "> Downloading ISO file ${SOURCE_ISO_URL}"
+    {
+    curl --fail \
+        --silent \
+        --show-error \
+        --location \
+        --output ${source_iso} \
+        ${SOURCE_ISO_URL}
+    } 2>&1 | indent
+fi
+
+# Mount and extract the ISO contents
+echo "> Extracting source ISO file"
+isomount=${BUILD_DIR}/mnt
+export chroot=${BUILD_DIR}/chroot
+export isobuild=${BUILD_DIR}/iso
+{
+    rmr ${isomount} ${isobuild} ${chroot}
+    mkdir ${isomount} ${isobuild}
+
+    mount -o loop,ro ${source_iso} ${isomount}
+    rsync -a ${isomount}/ ${isobuild}
+    umount ${isomount}
+
+    unsquashfs -no-progress -dest ${BUILD_DIR}/chroot ${isobuild}/casper/filesystem.squashfs
+} 2>&1 | indent
+
+echo "> Applying overlay"
+{
+    rsync --verbose --archive --one-file-system --chown root:root --exclude README.md overlay/ ${chroot}
+} 2>&1 | indent
+
+echo "> Preparing chroot"
+# mounts will be unmounted in the order here - keep /dev last
+chroot_mounts=( "${chroot}"/proc "${chroot}"/sys "${chroot}"/dev/pts "${chroot}"/run "${chroot}"/tmp "${chroot}"/dev )
+{
+    # Put in a working resolve.conf for the chroot to use
+    mv ${chroot}/etc/resolv.conf ${chroot}/etc/resolv.conf.orig
+    cp /etc/resolv.conf ${chroot}/etc/resolv.conf
+
+    # Prepare chroot mounts
+    mount --bind /dev "${chroot}"/dev -v
+    mount proc "${chroot}"/proc --types proc -v
+    mount sys "${chroot}"/sys --types sysfs -v
+    mount none "${chroot}"/dev/pts --types devpts -v
+    mount --bind /run "${chroot}"/run -v
+    mount tmp "${chroot}"/tmp --types tmpfs --options mode=1777 -v
+} 2>&1 | indent
+
+# Copy chroot-hooks into the chroot and then run each one
+{
+    rsync --quiet --archive --copy-links --one-file-system chroot-hooks ${chroot}
+} 2>&1 | indent
+
+export -n SHELLOPTS
+for hook in $(find ${chroot}/chroot-hooks -maxdepth 1 -executable -type f -o -type l | sort); do
+    echo "> Executing chroot hook $(basename ${hook})"
+    (
+        export HOME=/root
+        export LC_ALL=C
+        chroot ${chroot} chroot-hooks/$(basename ${hook})
+    ) 2>&1 | indent
+done
+echo "> Unmounting chroot"
+{
+    unmount_chroot
+} 2>&1 | indent
+
+# Run the iso hooks to modify the live image
+{
+    # Copy the hooks into the container filesystem and execute them from there
+    # This avoids some problems with permissions and executable bit sometimes seen in volume mounts
+    rsync --quiet --archive --copy-links --one-file-system iso-hooks ${BUILD_DIR}
+} 2>&1 | indent
+
+for hook in $(find ${BUILD_DIR}/iso-hooks -maxdepth 1 -executable -type f -o -type l | sort); do
+    echo "> Executing iso hook $(basename ${hook})"
+    (
+        ${BUILD_DIR}/iso-hooks/$(basename ${hook})
+    ) 2>&1 | indent
+done
+
+echo "> Building ISO image"
+{
+    # Write out options to config file
+    cat <<EOF >/tmp/xorriso.conf
+-as mkisofs \\
+-r -J --joliet-long \\
+-o ${OUTPATH} \\
+-quiet \\
+EOF
+    # Get the options the ISO was originally built with and write to config file
+    xorriso -report_about warning -indev "${source_iso}" -report_system_area as_mkisofs | sed -e 's|$| \\|' >> /tmp/xorriso.conf
+
+    # Modify volume label and modification date from the original
+    sed -E "s/-V '(.+)'/-V 'Ubuntu Custom'/" -i /tmp/xorriso.conf
+    modstamp=$(date '+%Y%m%d%H%M%S00')
+    sed -E "s/--modification-date='(\d+)'/--modification-date='${modstamp}'/" -i /tmp/xorriso.conf
+
+    # Add the source directory at the end of the options
+    echo "${isobuild}" >> /tmp/xorriso.conf
+
+    # Build the new ISO
+    xorriso -options_from_file /tmp/xorriso.conf
+    cp /tmp/xorriso.conf ${OUTPUT_DIR}
+} 2>&1 | indent
+
+true

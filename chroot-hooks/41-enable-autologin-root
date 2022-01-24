@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eEuo pipefail
+
+sed -i 's/#NAutoVTs=.*/NAutoVTs=4/' /etc/systemd/logind.conf
+sed -i 's/TTYVTDisallocate=.*/TTYVTDisallocate=no/' '/usr/lib/systemd/system/getty@.service'
+sed -i 's/ExecStart=.*/ExecStart=\/sbin\/agetty --autologin root --noclear %I $TERM/' '/usr/lib/systemd/system/getty@.service'

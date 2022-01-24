@@ -1,0 +1,15 @@
+#!/bin/bash
+set -eEuo pipefail
+
+echo "> Creating package manifest"
+
+# Create package manifest
+chmod +w ${isobuild}/casper/filesystem.manifest
+chroot ${chroot} dpkg-query -W --showformat='${Package} ${Version}\n' > ${isobuild}/casper/filesystem.manifest
+
+# Packages in filesystem.manifest are for the live system.
+# Packages in filesystem.manifest-desktop are for the target system.
+# Remove pacakges from filesystem.manifest-desktop that the target install does not need.
+cp ${isobuild}/casper/filesystem.manifest ${isobuild}/casper/filesystem.manifest-desktop
+sed -i '/ubiquity/d' ${isobuild}/casper/filesystem.manifest-desktop
+sed -i '/casper/d' ${isobuild}/casper/filesystem.manifest-desktop

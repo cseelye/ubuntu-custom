@@ -1,0 +1,7 @@
+#!/bin/bash
+set -eEuo pipefail
+
+echo "> Updating md5sums"
+cd ${isobuild}
+rm md5sum.txt
+find . -type f -print0 | xargs -0 md5sum | grep -v -e 'md5sum.txt' -e 'isolinux/boot.cat' -e 'isolinux/isolinux.bin' -e 'boot/grub/efi.img' > md5sum.txt

@@ -1,0 +1,3 @@
+Executable files in this directory will be run in lexigraphical order. This provides the ability to modify the live ISO image (not the disk image that is installed on the target). The environment variable `isobuild` is set with the path to the root of the ISO image.
+
+Portions of the `build-custom-iso` script are implemented here as hooks so that you can add functionality before/after particular operations. The hooks with `REQUIRED` in the name are important to create a working/proper ISO, so be very careful about modifying them. Most of the time you should be adding hooks before the REQUIRED hooks.

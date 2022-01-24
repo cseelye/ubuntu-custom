@@ -1,0 +1,7 @@
+#!/bin/bash
+set -eEuo pipefail
+
+echo "> Building filesystem image"
+rm ${isobuild}/casper/filesystem.squashfs
+mksquashfs ${chroot} ${isobuild}/casper/filesystem.squashfs -no-progress
+printf $(du -sx --block-size=1 ${chroot} | cut -f1) > ${isobuild}/casper/filesystem.size
