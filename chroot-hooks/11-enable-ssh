@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eEuo pipefail
+
+apt-get update
+apt-get install --no-install-recommends --yes openssh-server
+sed -i 's/#PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config

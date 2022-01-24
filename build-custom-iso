@@ -130,6 +130,7 @@ for hook in $(find ${chroot}/chroot-hooks -maxdepth 1 -executable -type f -o -ty
     (
         export HOME=/root
         export LC_ALL=C
+        export DEBIAN_INTERACTIVE=no
         chroot ${chroot} chroot-hooks/$(basename ${hook})
     ) 2>&1 | indent
 done
