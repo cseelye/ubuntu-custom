@@ -1,0 +1,24 @@
+name: Build ISO
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ISO_NAME: ubuntu-custom.iso
+  ROOT_PASSWORD: ubuntu
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+      - name: Build ISO
+        run: make iso
+      - name: Upload ISO
+        uses: actions/upload-artifact@v2
+        with:
+          name: Custom ISO image
+          path: out/$ISO_NAME
