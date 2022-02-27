@@ -18,6 +18,13 @@ ISO_DEPS = $(wildcard chroot-hooks/*)
 ISO_DEPS += $(wildcard iso-hooks/*)
 ISO_DEPS += build-custom-iso
 
+INTERACTIVE:=$(shell [ -t 0 ] && echo 1)
+ifeq ($(INTERACTIVE),1)
+	TTY = --tty
+else
+	TTY =
+endif
+
 # Idempotent deletion of a container image
 # $1 the image name
 define delete_image
@@ -50,7 +57,8 @@ $(ARTIFACT_DIR)/$(ISO_NAME): $(ISO_DEPS) | $(ARTIFACT_DIR) builder-image
         --rm \
         --privileged \
         --interactive \
-        --tty \
+        $(TTY) \
+        --init \
         --volume "$(CURDIR)":"$(SOURCE_DIR)" \
         --volume "$(ARTIFACT_DIR)":"$(OUTPUT_DIR)" \
         --env ISO_NAME="$(ISO_NAME)" \
