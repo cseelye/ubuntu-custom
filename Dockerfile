@@ -20,6 +20,7 @@ ENV SOURCE_DIR=${SOURCE_DIR:-/root/src}
 
 RUN printf 'APT::Install-Recommends "0";\nAPT::Install-Suggests "0";\n' >> /etc/apt/apt.conf.d/01norecommends
 ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && \
     apt-get install --yes \
         binutils \
@@ -27,6 +28,7 @@ RUN apt-get update && \
         curl \
         dbus \
         debootstrap \
+        gnupg \
         grub-efi-amd64-bin \
         grub-pc-bin \
         mtools \
@@ -34,7 +36,12 @@ RUN apt-get update && \
         squashfs-tools \
         vim \
         xorriso \
-    && apt-get autoremove --yes && apt-get clean && rm -rf /var/lib/apt/lists/*
+    && \
+    curl -fsSL https://cseelye.github.io/deb-repo/ppa/KEY.gpg | apt-key add - && \
+    curl -fsSL https://cseelye.github.io/deb-repo/ppa/cseelye_github.list -o /etc/apt/sources.list.d/cseelye_github.list && \
+    apt-get update && \
+    apt-get install --yes chroot-tools && \
+    apt-get autoremove --yes && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR $SOURCE_DIR
 CMD ["./build-custom-iso"]

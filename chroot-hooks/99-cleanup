@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eEuo pipefail
+
+apt-get autoremove --yes
+apt-get clean
+rm --force --recursive /var/lib/apt/lists/* /tmp/* ~/.bash_history

@@ -24,22 +24,8 @@ alias rm='rm --one-file-system --force'
 alias rmr='rm --recursive'
 alias mkdir='mkdir --parent'
 
-function unmount_chroot()
-{
-    (
-        set +u
-        if [[ -n ${chroot} && -n ${chroot_mounts} ]]; then
-            for mp in "${chroot_mounts[@]}"; do
-                if mountpoint --quiet "${mp}"; then
-                    umount --verbose --force "${mp}" || true
-                fi
-            done
-            if [[ -e ${chroot}/etc/resolv.conf.orig ]]; then
-                mv ${chroot}/etc/resolv.conf.orig ${chroot}/etc/resolv.conf
-            fi
-        fi
-    )
-}
+source /usr/local/lib/chroot_tools.sh
+
 function cleanup()
 {
     echo "> Cleaning up chroot"
@@ -48,7 +34,7 @@ function cleanup()
         if [[ -n ${isomount}  ]] && mountpoint --quiet ${isomount}; then
             umount ${isomount} &>/dev/null || true
         fi
-        unmount_chroot
+        dismantle_chroot "${chroot}"
     ) 2>&1 | indent
 }
 function cancel()
@@ -103,20 +89,8 @@ echo "> Applying overlay"
 } 2>&1 | indent
 
 echo "> Preparing chroot"
-# mounts will be unmounted in the order here - keep /dev last
-chroot_mounts=( "${chroot}"/proc "${chroot}"/sys "${chroot}"/dev/pts "${chroot}"/run "${chroot}"/tmp "${chroot}"/dev )
 {
-    # Put in a working resolve.conf for the chroot to use
-    mv ${chroot}/etc/resolv.conf ${chroot}/etc/resolv.conf.orig
-    cp /etc/resolv.conf ${chroot}/etc/resolv.conf
-
-    # Prepare chroot mounts
-    mount --bind /dev "${chroot}"/dev -v
-    mount proc "${chroot}"/proc --types proc -v
-    mount sys "${chroot}"/sys --types sysfs -v
-    mount none "${chroot}"/dev/pts --types devpts -v
-    mount --bind /run "${chroot}"/run -v
-    mount tmp "${chroot}"/tmp --types tmpfs --options mode=1777 -v
+    assemble_chroot "${chroot}"
 } 2>&1 | indent
 
 # Copy chroot-hooks into the chroot and then run each one
@@ -136,7 +110,7 @@ for hook in $(find ${chroot}/chroot-hooks -maxdepth 1 -executable -type f -o -ty
 done
 echo "> Unmounting chroot"
 {
-    unmount_chroot
+    dismantle_chroot "${chroot}"
 } 2>&1 | indent
 
 # Run the iso hooks to modify the live image
