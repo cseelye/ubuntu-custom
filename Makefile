@@ -3,7 +3,7 @@
 .DEFAULT_GOAL := iso
 SHELL = bash -o pipefail
 
-SOURCE_ISO_URL ?= https://releases.ubuntu.com/20.04/ubuntu-20.04.3-desktop-amd64.iso
+SOURCE_ISO_URL ?= https://releases.ubuntu.com/20.04/ubuntu-20.04.4-desktop-amd64.iso
 ISO_NAME ?= custom-ubuntu.iso
 ROOT_PASSWORD ?= live
 BUILD_DIR ?= /root/builder
@@ -38,6 +38,7 @@ endef
 builder-image: Dockerfile
 	docker image build \
         --build-arg ISO_NAME="$(ISO_NAME)" \
+        --build-arg SOURCE_ISO_URL="$(SOURCE_ISO_URL)" \
         --build-arg ROOT_PASSWORD="$(ROOT_PASSWORD)" \
         --build-arg BUILD_DIR="$(BUILD_DIR)" \
         --build-arg OUTPUT_DIR="$(OUTPUT_DIR)" \
@@ -62,6 +63,7 @@ $(ARTIFACT_DIR)/$(ISO_NAME): $(ISO_DEPS) | $(ARTIFACT_DIR) builder-image
         --volume "$(CURDIR)":"$(SOURCE_DIR)" \
         --volume "$(ARTIFACT_DIR)":"$(OUTPUT_DIR)" \
         --env ISO_NAME="$(ISO_NAME)" \
+        --env SOURCE_ISO_URL="$(SOURCE_ISO_URL)" \
         --env ROOT_PASSWORD="$(ROOT_PASSWORD)" \
         --env BUILD_DIR="$(BUILD_DIR)" \
         --env OUTPUT_DIR="$(OUTPUT_DIR)" \

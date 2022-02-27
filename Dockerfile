@@ -4,7 +4,7 @@ ARG ROOT_PASSWORD
 ENV ROOT_PASSWORD=${ROOT_PASSWORD:-live}
 
 ARG SOURCE_ISO_URL
-ENV SOURCE_ISO_URL=${SOURCE_ISO_URL:-https://releases.ubuntu.com/20.04/ubuntu-20.04.3-desktop-amd64.iso}
+ENV SOURCE_ISO_URL=${SOURCE_ISO_URL:-https://releases.ubuntu.com/20.04/ubuntu-20.04.4-desktop-amd64.iso}
 
 ARG ISO_NAME
 ENV ISO_NAME=${ISO_NAME:-custom-ubuntu.iso}

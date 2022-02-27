@@ -34,7 +34,9 @@ function cleanup()
         if [[ -n ${isomount}  ]] && mountpoint --quiet ${isomount}; then
             umount ${isomount} &>/dev/null || true
         fi
-        dismantle_chroot "${chroot}"
+        if [[ -e "${chroot}" ]]; then
+            dismantle_chroot "${chroot}"
+        fi
     ) 2>&1 | indent
 }
 function cancel()
