@@ -16,7 +16,9 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2
       - name: Build ISO
-        run: make iso
+        run: |
+            make iso
+            ls -lh out
       - name: Upload ISO
         uses: actions/upload-artifact@v2
         with:
