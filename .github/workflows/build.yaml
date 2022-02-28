@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+env:
+  ISO_NAME: custom-ubuntu.iso
+
 jobs:
   build:
     runs-on: ubuntu-latest
