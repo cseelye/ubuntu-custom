@@ -5,10 +5,6 @@ on:
     branches:
       - main
 
-env:
-  ISO_NAME: ubuntu-custom.iso
-  ROOT_PASSWORD: ubuntu
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,9 +14,9 @@ jobs:
       - name: Build ISO
         run: |
             make iso
-            ls -lh out
-      - name: Upload ISO
-        uses: actions/upload-artifact@v2
+            ls -lh "${GITHUB_WORKSPACE}/out/$ISO_NAME"
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: Custom ISO image
-          path: out/$ISO_NAME
+          files: "${GITHUB_WORKSPACE}/out/$ISO_NAME"
